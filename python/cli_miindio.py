@@ -121,102 +121,123 @@ class SimWrapper:
     """Just a lazy port of Hugh's code from miindio.py (like the rest of this program, really)
     """
     def __init__(self, args):
-        self.current_sim = api.MiindSimulation(args.filename, args.submitName)
-        self.cwdfilename = 'miind_cwd'
-        self.settingsfilename = op.expanduser('~/.miind_settings')
-        self.miind_cmake_cache = op.join(directories3.miind_root(), 'build/CMakeCache.txt')
-        self.debug = False
+      cwdfilename = 'miind_cwd'
+      settingsfilename = op.expanduser('~/.miind_settings')
+      available_settingsfilename = os.path.join(directories3.miind_root(),'python','miind_settings')
+      
+      self.available_settings = {}
+      self.available_settings['mpi_enabled'] = False
+      self.available_settings['openmp_enabled'] = False
+      self.available_settings['root_enabled'] = False
+      self.available_settings['cuda_enabled'] = False
+      self.settings = {}
+      self.settings['root_enabled'] = False
+      self.settings['cuda_enabled'] = False
 
-        self.settings = {}
-        self.settings['mpi_enabled'] = False
-        self.settings['openmp_enabled'] = False
-        self.settings['root_enabled'] = False
-        self.settings['cuda_enabled'] = False
+      cwd_settings = {}
+      cwd_settings['sim'] = 'NOT_SET'
+      cwd_settings['sim_project'] = 'NOT_SET'
 
-        self.cwd_settings = {}
-        self.cwd_settings['sim'] = self.current_sim.xml_fname
-        self.cwd_settings['sim_project'] = self.current_sim.submit_name
+      if op.exists(available_settingsfilename):
+          # Read available settings from MIIND installation.
+          with open(available_settingsfilename, 'r') as settingsfile:
+              for line in settingsfile:
+                  tokens = line.split('=')
+                  self.available_settings[tokens[0].strip()] = (tokens[1].strip() == 'ON')
+
+          # Read or create settings as long as they're available in the installation.
+          if not op.exists(settingsfilename):
+              print('Settings file ('+ settingsfilename +') created. Using defaults from MIIND installation:')
+              print('ROOT ENABLED = ' + str(self.available_settings['root_enabled']) + '')
+              print('CUDA ENABLED = ' + str(self.available_settings['cuda_enabled']) + '\n')
+
+              self.settings['root_enabled'] = self.available_settings['root_enabled']
+              self.settings['cuda_enabled'] = self.available_settings['cuda_enabled']
+
+              with open(settingsfilename, 'w') as settingsfile:
+                  for k,v in self.settings.items():
+                      if v:
+                          settingsfile.write(k + '=ON\n')
+                      else:
+                          settingsfile.write(k + '=OFF\n')
+          else:
+              with open(settingsfilename, 'r') as settingsfile:
+                  for line in settingsfile:
+                      tokens = line.split('=')
+                      self.settings[tokens[0].strip()] = (tokens[1].strip() == 'ON')
+
+              # Verify settings.
+              self.settings['root_enabled'] = self.available_settings['root_enabled'] and self.settings['root_enabled']
+              self.settings['cuda_enabled'] = self.available_settings['cuda_enabled'] and self.settings['cuda_enabled']
+      else:
+          print('WARNING : MIIND installation is missing the available settings file ' +  + '. All settings switched OFF.')
+
+          # Read or create settings as long as they're available in the installation.
+          if not op.exists(settingsfilename):
+              print('Settings file ('+ settingsfilename +') created. All settings disabled.\n')
+              self.settings['root_enabled'] = False
+              self.settings['cuda_enabled'] = False
+
+              with open(settingsfilename, 'w') as settingsfile:
+                  for k,v in self.settings.items():
+                      if v:
+                          settingsfile.write(k + '=ON\n')
+                      else:
+                          settingsfile.write(k + '=OFF\n')
+
+          else:
+              with open(settingsfilename, 'r') as settingsfile:
+                  for line in settingsfile:
+                      tokens = line.split('=')
+                      settings[tokens[0].strip()] = (tokens[1].strip() == 'ON')
+
+      if not op.exists(cwdfilename):
+          with open(cwdfilename, 'w') as cwdsettingsfile:
+              for k,v in cwd_settings.items():
+                  cwdsettingsfile.write(k + '=' + str(v) + '\n')
+      else:
+          with open(cwdfilename, 'r') as cwdsettingsfile:
+              for line in cwdsettingsfile:
+                  tokens = line.split('=')
+                  # Expect sim to be a filename, otherwise expect a boolean
+                  if tokens[0].strip() == 'sim':
+                       if tokens[1].strip() == 'NOT_SET':
+                           cwd_settings['sim'] = None
+                       else:
+                           cwd_settings['sim'] = tokens[1].strip()
+                  elif tokens[0].strip() == 'sim_project':
+                       if tokens[1].strip() == 'NOT_SET':
+                           cwd_settings['sim_project'] = None
+                       else:
+                           cwd_settings['sim_project'] = tokens[1].strip()
+
+      self.current_sim = None
+      if cwd_settings['sim'] != None:
+          if cwd_settings['sim'] != 'NOT_SET':
+              self.current_sim = api.MiindSimulation(cwd_settings['sim'], cwd_settings['sim_project'])
+              print('**** Current Simulation Details ****\n')
+              # TODO replace with code from sim
+              cwd_settings['sim'] = self.current_sim.xml_fname
+              cwd_settings['sim_project'] = self.current_sim.submit_name
 
 
-        self.flags_set = [False,False,False,False]
-        if op.exists(self.miind_cmake_cache):
-                with open(self.miind_cmake_cache, 'r') as cachefile:
-                        for line in cachefile:
-                                tokens = line.strip().split('=')
-                                if(tokens[0] == 'ENABLE_CUDA:BOOL'):
-                                        self.settings['cuda_enabled'] = (tokens[1] == 'ON')
-                                        self.flags_set[0] = True
-                                if(tokens[0] == 'ENABLE_MPI:BOOL'):
-                                        self.settings['mpi_enabled'] = (tokens[1] == 'ON')
-                                        self.flags_set[1] = True
-                                if(tokens[0] == 'ENABLE_OPENMP:BOOL'):
-                                        self.settings['openmp_enabled'] = (tokens[1] == 'ON')
-                                        self.flags_set[2] = True
-                                if(tokens[0] == 'ENABLE_ROOT:BOOL'):
-                                        self.settings['root_enabled'] = (tokens[1] == 'ON')
-                                        self.flags_set[3] = True
+              with open(cwdfilename, 'w') as settingsfile:
+                  for k,v in cwd_settings.items():
+                      settingsfile.write(k + '=' + str(v) + '\n')
+          else:
+              print('\nWARNING : No Simulation currently set. Please call \'sim\' to set it. \n')
+              self.current_sim = None
+      else:
+          print('\nWARNING : No Simulation currently set. Please call \'sim\' to set it. \n')
+          self.current_sim = None
 
-        if(not op.exists(self.miind_cmake_cache) or not all(self.flags_set)):
-                if not op.exists(self.settingsfilename):
-                        print('CMakeCache.txt in MIIND_ROOT/Build directory not found. Fall back to user settings file...')
-                        print('Settings file ('+ self.settingsfilename +') not found. MPI, OPENMP, ROOT and CUDA enabled by default.')
-
-                        with open(self.settingsfilename, 'w') as settingsfile:
-                                self.settings['mpi_enabled'] = True
-                                self.settings['openmp_enabled'] = True
-                                self.settings['root_enabled'] = True
-                                self.settings['cuda_enabled'] = True
-                                for k,v in self.settings.items():
-                                        settingsfile.write(k + '=' + str(v) + '\n')
-                else:
-                        with open(self.settingsfilename, 'r') as settingsfile:
-                                for line in settingsfile:
-                                        tokens = line.split('=')
-                                        self.settings[tokens[0].strip()] = (tokens[1].strip() == 'True')
-
-        """
-        with open(self.cwdfilename, 'w') as cwdsettingsfile:
-                for k,v in self.cwd_settings.items():
-                        cwdsettingsfile.write(k + '=' + str(v) + '\n')
-
-        if not op.exists(self.cwdfilename):
-                with open(self.cwdfilename, 'w') as cwdsettingsfile:
-                        for k,v in self.cwd_settings.items():
-                                cwdsettingsfile.write(k + '=' + str(v) + '\n')
-        else: 
-                # If miind_cwd already exists, SimWrapper is configured with settings specified therein
-                # TODO If no lif.xml specified, we should read miind_cwd, otherwise we should overwrite it
-                with open(self.cwdfilename, 'r') as cwdsettingsfile:
-                        for line in cwdsettingsfile:
-                                tokens = line.split('=')
-                                # Expect sim to be a filename, otherwise expect a boolean
-                                if tokens[0].strip() == 'sim':
-                                        if tokens[1].strip() == 'NOT_SET':
-                                                self.cwd_settings['sim'] = None
-                                        else:
-                                                self.cwd_settings['sim'] = tokens[1].strip()
-                                elif tokens[0].strip() == 'sim_project':
-                                        if tokens[1].strip() == 'NOT_SET':
-                                                self.cwd_settings['sim_project'] = None
-                                        else:
-                                              self.cwd_settings['sim_project'] = tokens[1].strip()
-        """
-
-    def simSubmitRun(self, args):
-            with open(self.cwdfilename, 'w') as settingsfile:
-                    for k,v in self.cwd_settings.items():
-                            settingsfile.write(k + '=' + str(v) + '\n')
-
-            self.current_sim.submit(True,
-                            self.settings['mpi_enabled'],
-                            self.settings['openmp_enabled'],
-                            self.settings['root_enabled'],
-                            self.settings['cuda_enabled'])
-        #   self.current_sim.run()	
+    def submit(self):
+            self.current_sim.submit(True, [],
+                  self.available_settings['mpi_enabled'], self.available_settings['openmp_enabled'], self.settings['root_enabled'], self.settings['cuda_enabled'])
 				
 def cli_simSubmitRun(args):
     sim = SimWrapper(args)
-    sim.simSubmitRun(args)
+    sim.submit()
 
 if __name__ == "__main__":	
     parser = configureArgumentParser()
