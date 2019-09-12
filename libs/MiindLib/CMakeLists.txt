@@ -1,8 +1,12 @@
 
 project( ${MIIND_LIBRARY_PREFIX}shared )
 
+find_package(CUDA REQUIRED)
+
 link_directories( ${GSL_LIBRARY_DIRS} )
 include( RequireGSL )
+
+include_directories(${CUDA_INCLUDE_DIRS})
 include_directories( ${GSL_INCLUDE_DIRS} )
 set( LIB_TYPE SHARED )
 include_directories( ${ROOT_INCLUDE_DIRS} )

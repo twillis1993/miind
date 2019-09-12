@@ -21,7 +21,7 @@ class LifMeshGenerator:
     self.lambda   : an arbitrary small value for the reset bin. Should not touch other grid cellss.'''
 
 
-    def __init__(self, basename, tau = 10e-3, V_threshold = -50., V_rest = -65.0, V_min = -80., dt = 0.0001, N_grid=300):
+    def __init__(self, basename, tau = 0.01, V_threshold = -50., V_rest = -65.0, V_min = -80., dt = 0.0001, N_grid=300):
         self.tau             = tau                               # membrane time constant in s
         self.V_threshold     = V_threshold                       # threshold in V
         self.epsilon         = 0.001                             # padding as fraction of the threshold potential

@@ -1,6 +1,6 @@
 project( ${MIIND_LIBRARY_PREFIX}cudatwod )
 
-find_package(CUDA  REQUIRED)
+find_package(CUDA REQUIRED)
 link_directories( ${GSL_LIBRARY_DIRS} )
 include( RequireGSL )
 include_directories(${CUDA_INCLUDE_DIRS})

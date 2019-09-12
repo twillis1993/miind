@@ -7,6 +7,8 @@ INCLUDE_DIRECTORIES(
    ${CMAKE_CURRENT_BINARY_DIR}/../../libs/
 )
 
+find_package(CUDA REQUIRED)
+
 
 include_directories( ../../libs/MPILib )
 include_directories( ../../libs/NumtoolsLib )
@@ -17,6 +19,8 @@ include_directories( ${GSL_INCLUDE_DIRS} )
 link_directories( ${GSL_LIBRARY_DIRS} )
 include_directories( ${ROOT_INCLUDE_DIRS} )
 link_directories( ${ROOT_LIBRARY_DIRS} )
+
+include_directories( ${CUDA_INCLUDE_DIRS})
 
 #############################################################################
 # UnitGeom source and header files
