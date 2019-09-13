@@ -76,14 +76,26 @@ def configureArgumentParser():
     generateDrawMeshSP.add_argument('filename', type=str)
     generateDrawMeshSP.set_defaults(func=cli_drawMesh)
 
-    #simSP = subparsers.add_parser("sim", help="Sets specified XML file as current simulation")
-    #simSP.add_argument("filename", type=str)			
-    #simSP.set_defaults(func=cli_sim)
+    simSP = subparsers.add_parser("sim", help="Sets specified XML file as current simulation")
+    simSP.add_argument("filename", type=str)			
+    simSP.add_argument("submitName", type=str)			
+    simSP.set_defaults(func=cli_sim)
+
+    simSubmitSP = subparsers.add_parser("sim-submit", help="Submits simulation")
+    simSubmitSP.add_argument("filename", type=str)			
+    simSubmitSP.add_argument('submitName',type=str)
+    simSubmitSP.set_defaults(func=cli_simSubmit)
 
     simSubmitRunSP = subparsers.add_parser("sim-submit-run", help="Submits and runs simulation")
     simSubmitRunSP.add_argument("filename", type=str)			
-    simSubmitRunSP.add_argument('submitName',type=str,default=None)
+    simSubmitRunSP.add_argument('submitName',type=str)
     simSubmitRunSP.set_defaults(func=cli_simSubmitRun)
+
+    submitSP = subparsers.add_parser("submit", help="Submits simulation")
+    submitSP.set_defaults(func=cli_submit)
+
+    runSP = subparsers.add_parser("run", help="Runs simulation")
+    runSP.set_defaults(func=cli_run)
 
     return parser
 
@@ -121,7 +133,7 @@ class SimWrapper:
     """Just a lazy port of Hugh's code from miindio.py (like the rest of this program, really)
     """
     def __init__(self, args):
-      cwdfilename = 'miind_cwd'
+      self.cwdfilename = 'miind_cwd'
       settingsfilename = op.expanduser('~/.miind_settings')
       available_settingsfilename = os.path.join(directories3.miind_root(),'python','miind_settings')
       
@@ -134,9 +146,9 @@ class SimWrapper:
       self.settings['root_enabled'] = False
       self.settings['cuda_enabled'] = False
 
-      cwd_settings = {}
-      cwd_settings['sim'] = 'NOT_SET'
-      cwd_settings['sim_project'] = 'NOT_SET'
+      self.cwd_settings = {}
+      self.cwd_settings['sim'] = 'NOT_SET'
+      self.cwd_settings['sim_project'] = 'NOT_SET'
 
       if op.exists(available_settingsfilename):
           # Read available settings from MIIND installation.
@@ -191,58 +203,78 @@ class SimWrapper:
                       tokens = line.split('=')
                       settings[tokens[0].strip()] = (tokens[1].strip() == 'ON')
 
-      if not op.exists(cwdfilename):
-          with open(cwdfilename, 'w') as cwdsettingsfile:
-              for k,v in cwd_settings.items():
-                  cwdsettingsfile.write(k + '=' + str(v) + '\n')
-      else:
-          with open(cwdfilename, 'r') as cwdsettingsfile:
-              for line in cwdsettingsfile:
-                  tokens = line.split('=')
-                  # Expect sim to be a filename, otherwise expect a boolean
-                  if tokens[0].strip() == 'sim':
-                       if tokens[1].strip() == 'NOT_SET':
-                           cwd_settings['sim'] = None
-                       else:
-                           cwd_settings['sim'] = tokens[1].strip()
-                  elif tokens[0].strip() == 'sim_project':
-                       if tokens[1].strip() == 'NOT_SET':
-                           cwd_settings['sim_project'] = None
-                       else:
-                           cwd_settings['sim_project'] = tokens[1].strip()
+    def sim(self, args):
+        # No settings specified and no lif.xml specified
+        if not (op.exists(self.cwdfilename) or (hasattr(args, "filename") and args.filename)):
+            raise Exception("No miind_cwd and no specified XML")
+        # There is a specified lif.xml file and submit name, which take precedence over existing settings
+        elif hasattr(args, "filename") and args.filename:
+            self.current_sim = api.MiindSimulation(args.filename, args.submitName)
+            self.cwd_settings['sim'] = self.current_sim.xml_fname
+            self.cwd_settings['sim_project'] = self.current_sim.submit_name
 
-      self.current_sim = None
-      if cwd_settings['sim'] != None:
-          if cwd_settings['sim'] != 'NOT_SET':
-              self.current_sim = api.MiindSimulation(cwd_settings['sim'], cwd_settings['sim_project'])
-              print('**** Current Simulation Details ****\n')
-              # TODO replace with code from sim
-              cwd_settings['sim'] = self.current_sim.xml_fname
-              cwd_settings['sim_project'] = self.current_sim.submit_name
+            # Update settings file
+            with open(self.cwdfilename, 'w') as settingsfile:
+                for k,v in self.cwd_settings.items():
+                    settingsfile.write(k + '=' + str(v) + '\n')
+        # There is an existing cwdfile but no specified lif.xml etc.
+        else:
+            with open(self.cwdfilename, 'r') as cwdsettingsfile:
+                for line in cwdsettingsfile:
+                    tokens = line.split('=')
+                    # Expect sim to be a filename, otherwise expect a boolean
+                    if tokens[0].strip() == 'sim':
+                        if tokens[1].strip() == 'NOT_SET':
+                            raise Exception("Simulation XML not set in miind_cwd")
+                        else:
+                            self.cwd_settings['sim'] = tokens[1].strip()
+                    elif tokens[0].strip() == 'sim_project':
+                        if tokens[1].strip() == 'NOT_SET':
+                            raise Exception("Project name not set in miind_cwd")
+                        else:
+                            self.cwd_settings['sim_project'] = tokens[1].strip()
 
-
-              with open(cwdfilename, 'w') as settingsfile:
-                  for k,v in cwd_settings.items():
-                      settingsfile.write(k + '=' + str(v) + '\n')
-          else:
-              print('\nWARNING : No Simulation currently set. Please call \'sim\' to set it. \n')
-              self.current_sim = None
-      else:
-          print('\nWARNING : No Simulation currently set. Please call \'sim\' to set it. \n')
-          self.current_sim = None
+            self.current_sim = api.MiindSimulation(self.cwd_settings['sim'], self.cwd_settings['sim_project'])
 
     def submit(self):
             self.current_sim.submit(True, [],
-                  self.available_settings['mpi_enabled'], self.available_settings['openmp_enabled'], self.settings['root_enabled'], self.settings['cuda_enabled'])
+                  self.available_settings['mpi_enabled'],
+                  self.available_settings['openmp_enabled'], 
+                  self.settings['root_enabled'], 
+                  self.settings['cuda_enabled'])
+
+    def run(self): 
+            self.current_sim.run()
+
+def cli_sim(args):
+    sim = SimWrapper(args)
+    sim.sim(args)
+
+def cli_simSubmit(args):
+    sim = SimWrapper(args)
+    sim.sim(args)
+    sim.submit()
 				
 def cli_simSubmitRun(args):
     sim = SimWrapper(args)
+    sim.sim(args)
     sim.submit()
+    sim.run()
+
+def cli_submit(args):
+    sim = SimWrapper(args)
+    sim.sim(args)
+    sim.submit()
+
+def cli_run(args):
+    sim = SimWrapper(args)
+    sim.sim(args)
+    sim.run()
 
 if __name__ == "__main__":	
     parser = configureArgumentParser()
     args = parser.parse_args()
-    try:
-        args.func(args)
-    except AttributeError:
-        parser.error("Too few arguments")
+    # TODO check this
+    #https://stackoverflow.com/questions/48648036/python-argparse-args-has-no-attribute-func
+    args.func(args)
+
