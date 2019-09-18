@@ -112,10 +112,10 @@ def areaoftriangle(triangle):
     s = (a+b+c) / 2.0
     w = s*(s-a)*(s-b)*(s-c)
     if w < 0:
-        print'Degenerate triangle'
-        print x
-        print y
-        print z
+        print('Degenerate triangle')
+        print(x)
+        print(y)
+        print(z)
         raise ValueError
     else:
         area = np.sqrt(w)

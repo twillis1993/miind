@@ -86,7 +86,7 @@ def configureArgumentParser():
     simSubmitSP.add_argument('submitName',type=str)
     simSubmitSP.set_defaults(func=cli_simSubmit)
 
-    simSubmitRunSP = subparsers.add_parser("sim-submit-run", help="Submits and runs simulation")
+    simSubmitRunSP = subparsers.add_parser("sim-submit-run", help="Specifies, submits, and runs simulation")
     simSubmitRunSP.add_argument("filename", type=str)			
     simSubmitRunSP.add_argument('submitName',type=str)
     simSubmitRunSP.set_defaults(func=cli_simSubmitRun)
@@ -96,6 +96,26 @@ def configureArgumentParser():
 
     runSP = subparsers.add_parser("run", help="Runs simulation")
     runSP.set_defaults(func=cli_run)
+
+    submitRunSP = subparsers.add_parser("submit-run", help="Submits and runs simulation")
+    submitRunSP.set_defaults(func=cli_submitRun)
+
+    generateMatsoMeshSP = subparsers.add_parser("generate-matso-mesh", help="Generates matso mesh using the MatsoMeshGenerator.py")
+    generateMatsoMeshSP.add_argument("name",type=str)
+    generateMatsoMeshSP.add_argument("tauR", type=float, help="Time constant for depressive effect")
+    generateMatsoMeshSP.add_argument("tauU", type=float, help="Time constant for facilitating effect")
+    generateMatsoMeshSP.add_argument("timestep", type=float)
+    generateMatsoMeshSP.add_argument("duration", type=float)
+    generateMatsoMeshSP.add_argument("alpha", nargs="+", type=float, help="Synaptic efficacy/ies for jump file generation")
+    generateMatsoMeshSP.add_argument("--noOfBins", type=int, default=100)
+    generateMatsoMeshSP.set_defaults(func=cli_generateMatsoMesh)
+
+    generateDensityMovieSP = subparsers.add_parser("generate-density-movie", help="Generates density movie")
+    generateDensityMovieSP.add_argument("nodeName", type=str, help="Name of simulation node for which to generate a movie")
+    generateDensityMovieSP.add_argument("frameSize", type=int)
+    generateDensityMovieSP.add_argument("timestep", type=float)
+    generateDensityMovieSP.add_argument("movieName", type=str, help="Movie name sans extension")
+    generateDensityMovieSP.set_defaults(func=cli_generateDensityMovie)
 
     return parser
 
@@ -115,9 +135,10 @@ def cli_generateModel(args):
     api.MeshTools.buildModelFileFromMesh(args.name, args.reversalPotential, args.thresholdPotential)
 
 def cli_generateMatrix(args):
-    try:
-        api.MeshTools.buildMatrixFileFromModel(args.name, args.vEfficacy, fidfile=".".join([args.name, "fid"]), num_mc_points=args.noOfPoints, jump_file=args.jumpFile)
-    except AttributeError:
+    # NB: vEfficacy redundant with jump file but the API method requires it
+    if (hasattr(args, "jumpFile") and args.jumpFile):
+        api.MeshTools.buildMatrixFileFromModel(basename=args.name, jump_file=args.jumpFile, num_mc_points=args.noOfPoints, fidfile=".".join([args.name, "fid"]), spike_shift_v=args.vEfficacy)
+    else:
         api.MeshTools.buildMatrixFileFromModel(args.name, args.vEfficacy, fidfile=".".join([args.name, "fid"]), num_mc_points=args.noOfPoints, spike_shift_w=args.wEfficacy, reset_shift_w=args.wResetShift, use_area_calculation=args.isAreaCalc)
 
 def cli_generateAllFiles(args):
@@ -128,6 +149,14 @@ def cli_generateAllFiles(args):
 
 def cli_drawMesh(args):	
     api.MeshTools.plotMesh(args.filename)
+
+def cli_generateMatsoMesh(args):
+    gen = api.MatsoMeshGenerator(basename=args.name, tauR=args.tauR, tauU=args.tauU, timestep=args.timestep, duration=args.duration, noOfBins=args.noOfBins)
+    gen.generateMeshFile()
+    gen.generateStationaryFile()
+    gen.generateReversalFile()
+    for alpha in args.alpha:
+        gen.generateJumpFile(alpha)
 
 class SimWrapper:
     """Just a lazy port of Hugh's code from miindio.py (like the rest of this program, really)
@@ -201,7 +230,7 @@ class SimWrapper:
               with open(settingsfilename, 'r') as settingsfile:
                   for line in settingsfile:
                       tokens = line.split('=')
-                      settings[tokens[0].strip()] = (tokens[1].strip() == 'ON')
+                      self.settings[tokens[0].strip()] = (tokens[1].strip() == 'ON')
 
     def sim(self, args):
         # No settings specified and no lif.xml specified
@@ -270,6 +299,21 @@ def cli_run(args):
     sim = SimWrapper(args)
     sim.sim(args)
     sim.run()
+
+def cli_submitRun(args):
+    sim = SimWrapper(args)
+    sim.sim(args)
+    sim.submit()
+    sim.run()
+
+def cli_generateDensityMovie(args):
+    sim = SimWrapper(args)
+    sim.sim(args)
+    currentDensity = sim.current_sim.getDensityByNodeName(args.nodeName)
+    currentDensity.generateDensityAnimation(args.movieName, 
+                                            args.frameSize,
+                                            True,
+                                            args.timestep)
 
 if __name__ == "__main__":	
     parser = configureArgumentParser()

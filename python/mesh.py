@@ -28,7 +28,7 @@ ROOT.gStyle.SetOptStat(0)
 MAX_NEIGHBOURS = 128
 
 
-from itertools import tee, islice, chain, izip
+from itertools import tee, islice, chain
 
 def mergeQuads(a,b):
     newCell = Quadrilateral([a.points[0][0],b.points[1][0],b.points[2][0],a.points[3][0]],[a.points[0][1],b.points[1][1],b.points[2][1],a.points[3][1]])
@@ -38,7 +38,7 @@ def previous_and_next(some_iterable):
     prevs, items, nexts = tee(some_iterable, 3)
     prevs = chain([None], prevs)
     nexts = chain(islice(nexts, 1, None), [None])
-    return izip(prevs, items, nexts)
+    return zip(prevs, items, nexts)
 
 def np_perp( a ) :
     '''a is list like object of floats of length 2, corresponding to a 2D vector.
@@ -63,15 +63,15 @@ def np_seg_intersect(a, b):
 
     # if r x s = 0 and (q-p)xr=0, then the two lines are collinear.
     if np.isclose(denom, 0) and not np.isclose(num, 0):
-	# Parallel and non-intersecting
+        # Parallel and non-intersecting
         return None
     u = num / denom
     t = np_cross_product(v, s) / denom
 
     if u >= 0 and u <= 1 and t >=0 and t <=1:
-	res = b[0] + (s*u)
-	return res
-	# Otherwise, the two line segments are not parallel but do not intersect.
+        res = b[0] + (s*u)
+        return res
+        # Otherwise, the two line segments are not parallel but do not intersect.
     return None
 
 def create_from_xml(filename):
@@ -192,29 +192,29 @@ class Quadrilateral(Cell):
         return generate_random_quadrilateral_points(self.points, N)
 
     def isSimple(self):
-	diag_1=[self.points[0].tolist(),self.points[2].tolist()]
-	diag_2=[self.points[1].tolist(),self.points[3].tolist()]
-	if np_seg_intersect(diag_1,diag_2) is None: # adapted to prevent elementwise comparison (MdK:7/4/2017)
-	    return False
-	else:
-	    return True
+        diag_1=[self.points[0].tolist(),self.points[2].tolist()]
+        diag_2=[self.points[1].tolist(),self.points[3].tolist()]
+        if np_seg_intersect(diag_1,diag_2) is None: # adapted to prevent elementwise comparison (MdK:7/4/2017)
+            return False
+        else:
+            return True
 
     def isSelfIntersecting(self):
-	edge_1 = [self.points[0].tolist(), self.points[1].tolist()]
-	edge_2 = [self.points[1].tolist(), self.points[2].tolist()]
-	edge_3 = [self.points[2].tolist(), self.points[3].tolist()]
-	edge_4 = [self.points[3].tolist(), self.points[0].tolist()]
+        edge_1 = [self.points[0].tolist(), self.points[1].tolist()]
+        edge_2 = [self.points[1].tolist(), self.points[2].tolist()]
+        edge_3 = [self.points[2].tolist(), self.points[3].tolist()]
+        edge_4 = [self.points[3].tolist(), self.points[0].tolist()]
 
-	if np_seg_intersect(edge_1, edge_3) is None and np_seg_intersect(edge_2, edge_4) is None: # adapted to prevent elementwise comparison (MdK:7/4/2017)
-	    return False
-	else:
-	    return True
+        if np_seg_intersect(edge_1, edge_3) is None and np_seg_intersect(edge_2, edge_4) is None: # adapted to prevent elementwise comparison (MdK:7/4/2017)
+            return False
+        else:
+            return True
 
     def isTooSmall(self, threshold = 1e-8):
-	if self.area < threshold:
-	    return True
-	else:
-	    return False
+        if self.area < threshold:
+            return True
+        else:
+            return False
 
 class Negative(Cell):
     ''' Create a cell that is defined by the bins it is not in. '''
@@ -386,13 +386,13 @@ class Mesh:
     def __init__(self, filename, kdTree=False):
         ''' A mesh has already been generated on a file.'''
         if filename is None:
-	    self.vs = []
-	    self.ws = []
-	    self.cells = []
-	    self.neighbours = {}
-	else:
+            self.vs = []
+            self.ws = []
+            self.cells = []
+            self.neighbours = {}
+        else:
 
-  	    self.filename = filename
+            self.filename = filename
             f = open(filename)
             lines = f.readlines()
             if len(lines) == 0:
@@ -418,13 +418,13 @@ class Mesh:
             self.cells.append([Cell([0.0],[0.0])])
 
             for block in blocks:
-        	vs, ws = self.__build_arrays__(block)
-        	self.vs.append(vs)
-        	self.ws.append(ws)
-        	self.__build_grid__(vs,ws)
+                vs, ws = self.__build_arrays__(block)
+                self.vs.append(vs)
+                self.ws.append(ws)
+                self.__build_grid__(vs,ws)
 
 
-    	    if (kdTree == True): self.__build_tree__()
+            if (kdTree == True): self.__build_tree__()
             self.neighbours = {}
             self.__build_neighbours__()
 
@@ -515,7 +515,7 @@ class Mesh:
                     try:
                         quad =Quadrilateral(cellv,cellw)
                     except ValueError:
-                        print 'An error, probably a degeneracy in strip: ',i, ' cell: ', j
+                        print('An error, probably a degeneracy in strip: ',i, ' cell: ', j)
                     cell.append(quad)
                 self.cells.append(cell)
 
@@ -637,58 +637,58 @@ class Mesh:
 
 
     def checkSimple(self):
-	'''Checks whether Quadrilaterals are Simple'''
-	chksum=0
-	for i, cells in enumerate(self.cells):
-	    for j, cell in enumerate(cells):
-		chkCell=self.cells[i][j]
-		if chkCell.__class__.__name__ == 'Quadrilateral':
-		    if chkCell.isSimple() == False:
-			chksum += 1
-			print i,j
-	return chksum
+        '''Checks whether Quadrilaterals are Simple'''
+        chksum=0
+        for i, cells in enumerate(self.cells):
+            for j, cell in enumerate(cells):
+                chkCell=self.cells[i][j]
+                if chkCell.__class__.__name__ == 'Quadrilateral':
+                    if chkCell.isSimple() == False:
+                        chksum += 1
+                        print(i,j)
+        return chksum
 
     def checkSelfIntersection(self):
-	'''Checks for concave and self-intersecting Quadrilaterals'''
-	chkConcave=0
-	chkSelfIntersect=0
-	x_coords=[]
-	y_coords=[]
-	for i, cells in enumerate(self.cells):
-	    for j, cell in enumerate(cells):
-		chkCell=self.cells[i][j]
-		if chkCell.__class__.__name__ == 'Quadrilateral':
-		    if chkCell.isSimple() == False:
-			if chkCell.isSelfIntersecting() == False:
-			    chkConcave += 1
-			else:
-			    chkSelfIntersect += 1
-			    print i,j
-			    x_coords=np.append(x_coords,chkCell.centroid[0])
-			    y_coords=np.append(y_coords,chkCell.centroid[1])
-	plt.scatter(x_coords,y_coords)
-	if chkSelfIntersect > 0:
-	    plt.show()
-	return chkConcave,chkSelfIntersect
+        '''Checks for concave and self-intersecting Quadrilaterals'''
+        chkConcave=0
+        chkSelfIntersect=0
+        x_coords=[]
+        y_coords=[]
+        for i, cells in enumerate(self.cells):
+            for j, cell in enumerate(cells):
+                chkCell=self.cells[i][j]
+                if chkCell.__class__.__name__ == 'Quadrilateral':
+                    if chkCell.isSimple() == False:
+                        if chkCell.isSelfIntersecting() == False:
+                            chkConcave += 1
+                        else:
+                            chkSelfIntersect += 1
+                            print(i,j)
+                            x_coords=np.append(x_coords,chkCell.centroid[0])
+                            y_coords=np.append(y_coords,chkCell.centroid[1])
+        plt.scatter(x_coords,y_coords)
+        if chkSelfIntersect > 0:
+            plt.show()
+        return chkConcave,chkSelfIntersect
 
     def checkSmallBins(self):
-    	'''Checks for concave and self-intersecting Quadrilaterals'''
-    	chkSum = 0
-    	x_coords=[]
-    	y_coords=[]
-    	for i, cells in enumerate(self.cells):
-    	    for j, cell in enumerate(cells):
-    		chkCell=self.cells[i][j]
-    		if chkCell.__class__.__name__ == 'Quadrilateral':
-    		    if chkCell.isTooSmall() == True:
-    			    chkSum += 1
-    			    print i,j
-    			    x_coords=np.append(x_coords,chkCell.centroid[0])
-    			    y_coords=np.append(y_coords,chkCell.centroid[1])
-    	plt.scatter(x_coords,y_coords)
-    	if chkSum > 0:
-    	    plt.show()
-    	return chkSum
+        '''Checks for concave and self-intersecting Quadrilaterals'''
+        chkSum = 0
+        x_coords=[]
+        y_coords=[]
+        for i, cells in enumerate(self.cells):
+            for j, cell in enumerate(cells):
+                chkCell=self.cells[i][j]
+                if chkCell.__class__.__name__ == 'Quadrilateral':
+                    if chkCell.isTooSmall() == True:
+                            chkSum += 1
+                            print(i,j)
+                            x_coords=np.append(x_coords,chkCell.centroid[0])
+                            y_coords=np.append(y_coords,chkCell.centroid[1])
+        plt.scatter(x_coords,y_coords)
+        if chkSum > 0:
+            plt.show()
+        return chkSum
 
 ####under construction
     def mergeSmallBins(self, thresh = 2e-3):
@@ -712,116 +712,116 @@ class Mesh:
 
     def removeBadBins(self):
 
-	new_mesh = Mesh(None)
+        new_mesh = Mesh(None)
         new_mesh.dt = self.dt # Added (MdK): 6/04/2017
 
-	for i, cells in enumerate(self.cells):
+        for i, cells in enumerate(self.cells):
 
-	    if i == 0:
-		new_mesh.cells.append(self.cells[0])
-	    else:
-	    	for j, cell in enumerate(cells):
+            if i == 0:
+                new_mesh.cells.append(self.cells[0])
+            else:
+                for j, cell in enumerate(cells):
 
-		    chkCell = self.cells[i][j]
-		    if j == 0 and chkCell.isSelfIntersecting():
-			new_mesh.cells.append([Cell([0.],[0.])])
-		    elif j == 0 and not chkCell.isSelfIntersecting():
-			new_mesh.cells.append([chkCell])
-		    elif not chkCell.isSelfIntersecting():
-			new_mesh.cells[i].append(chkCell)
-		    elif chkCell.isSelfIntersecting():
-			break
+                    chkCell = self.cells[i][j]
+                    if j == 0 and chkCell.isSelfIntersecting():
+                        new_mesh.cells.append([Cell([0.],[0.])])
+                    elif j == 0 and not chkCell.isSelfIntersecting():
+                        new_mesh.cells.append([chkCell])
+                    elif not chkCell.isSelfIntersecting():
+                        new_mesh.cells[i].append(chkCell)
+                    elif chkCell.isSelfIntersecting():
+                        break
 
-	return new_mesh
+        return new_mesh
 
     def removeSmallBins(self,thresh = 1e-5):
 
-	new_mesh = Mesh(None)
-	new_mesh.dt = self.dt
-	new_mesh.filename = self.filename
-	for i, cells in enumerate(self.cells):
-	    if i == 0:
-		new_mesh.cells.append(self.cells[0])
-	    else:
-		for j, cell in enumerate(cells):
-		    chkCell = self.cells[i][j]
-		    if j == 0 and chkCell.isTooSmall(threshold = thresh):
-			new_mesh.cells.append([Cell([0.],[0.])])
-		    elif j == 0 and not chkCell.isTooSmall(threshold = thresh):
-			new_mesh.cells.append([chkCell])
-		    elif not chkCell.isTooSmall(threshold = thresh):
-			new_mesh.cells[i].append(chkCell)
-		    elif chkCell.isTooSmall(threshold = thresh):
-			break
-	return new_mesh
+        new_mesh = Mesh(None)
+        new_mesh.dt = self.dt
+        new_mesh.filename = self.filename
+        for i, cells in enumerate(self.cells):
+            if i == 0:
+                new_mesh.cells.append(self.cells[0])
+            else:
+                for j, cell in enumerate(cells):
+                    chkCell = self.cells[i][j]
+                    if j == 0 and chkCell.isTooSmall(threshold = thresh):
+                        new_mesh.cells.append([Cell([0.],[0.])])
+                    elif j == 0 and not chkCell.isTooSmall(threshold = thresh):
+                        new_mesh.cells.append([chkCell])
+                    elif not chkCell.isTooSmall(threshold = thresh):
+                        new_mesh.cells[i].append(chkCell)
+                    elif chkCell.isTooSmall(threshold = thresh):
+                        break
+        return new_mesh
 
     def removeWithRenewal(self, threshold = 1e-8):
-	new_mesh = Mesh(None)
-	revname = self.filename.split('.')[0] + '.rev'
-	#new_mesh.filename = fn
-	f = open(revname, 'w')
-	f.write('<Mapping Type=\"Reversal\">\n')
-	flagged_cells = []
+        new_mesh = Mesh(None)
+        revname = self.filename.split('.')[0] + '.rev'
+        #new_mesh.filename = fn
+        f = open(revname, 'w')
+        f.write('<Mapping Type=\"Reversal\">\n')
+        flagged_cells = []
 
-#	end_strips = []
+#       end_strips = []
 #        limit_coords = []
 
-	for i, cells in enumerate(self.cells):
-	    if i == 0 or i == 1:
-		new_mesh.cells.append(self.cells[i])
-	    else:
-		for j, cell in enumerate(cells):
-		    chkCell = self.cells[i][j]
+        for i, cells in enumerate(self.cells):
+            if i == 0 or i == 1:
+                new_mesh.cells.append(self.cells[i])
+            else:
+                for j, cell in enumerate(cells):
+                    chkCell = self.cells[i][j]
 
-		    if j == 0 and (chkCell.isSelfIntersecting() or chkCell.isTooSmall(threshold)):
-			new_mesh.cells.append([Cell([0.],[0.])])
-			print i,j
-		    elif j == 0 and not (chkCell.isSelfIntersecting() or chkCell.isTooSmall(threshold)):
-			new_mesh.cells.append([chkCell])
-		    elif not (chkCell.isSelfIntersecting() or chkCell.isTooSmall(threshold)):
-			new_mesh.cells[i].append(chkCell)
+                    if j == 0 and (chkCell.isSelfIntersecting() or chkCell.isTooSmall(threshold)):
+                        new_mesh.cells.append([Cell([0.],[0.])])
+                        print(i,j)
+                    elif j == 0 and not (chkCell.isSelfIntersecting() or chkCell.isTooSmall(threshold)):
+                        new_mesh.cells.append([chkCell])
+                    elif not (chkCell.isSelfIntersecting() or chkCell.isTooSmall(threshold)):
+                        new_mesh.cells[i].append(chkCell)
 
-			if j == len(self.cells[i]) - 1:
-			    #ind = np.argmin(distance.cdist([self.cells[1][k].centroid for k in range(len(self.cells[1]))],[chkCell.centroid],'euclidean'))
-			    ind = np.argmin(distance.cdist([C.centroid for C in self.cells[1]], [chkCell.centroid],'euclidean'))
-			    f.write(repr(i)+ ',0\t1,' + repr(ind)+'\t1.0\n')
+                        if j == len(self.cells[i]) - 1:
+                            #ind = np.argmin(distance.cdist([self.cells[1][k].centroid for k in range(len(self.cells[1]))],[chkCell.centroid],'euclidean'))
+                            ind = np.argmin(distance.cdist([C.centroid for C in self.cells[1]], [chkCell.centroid],'euclidean'))
+                            f.write(repr(i)+ ',0\t1,' + repr(ind)+'\t1.0\n')
 
 #                            end_strips.append([i, j])
-#			    limit_coords.append(ind)
-		    elif (chkCell.isSelfIntersecting() or chkCell.isTooSmall(threshold)):
-			if j != 0:
-			    flagged_cells.append([i,j])
-			else:
-			    print i,j
-			break
-#	f.write('</Mapping>')
+#                           limit_coords.append(ind)
+                    elif (chkCell.isSelfIntersecting() or chkCell.isTooSmall(threshold)):
+                        if j != 0:
+                            flagged_cells.append([i,j])
+                        else:
+                            print(i,j)
+                        break
+#       f.write('</Mapping>')
 
-#	for i,xy in enumerate(end_strips):
-#	    C = self.cells[xy[0]][xy[1]].centroid
-#	    D = self.cells[1][limit_coords[i]].centroid
-#	    plt.scatter(C[0],C[1])
-#	    plt.scatter(D[0],D[1], color = 'r')
+#       for i,xy in enumerate(end_strips):
+#           C = self.cells[xy[0]][xy[1]].centroid
+#           D = self.cells[1][limit_coords[i]].centroid
+#           plt.scatter(C[0],C[1])
+#           plt.scatter(D[0],D[1], color = 'r')
 
 
-	for coords in flagged_cells:
-	    ind = np.argmin(distance.cdist([x.centroid for y in (new_mesh.cells) for x in y], [self.cells[coords[0]][coords[1]].centroid], 'euclidean'))
-	    i,j = new_mesh.cellIndex(ind)
-	    f.write(repr(coords[0])+',0\t'+repr(i)+','+repr(j)+'\t1.0\n')
-	f.write('</Mapping>')
+        for coords in flagged_cells:
+            ind = np.argmin(distance.cdist([x.centroid for y in (new_mesh.cells) for x in y], [self.cells[coords[0]][coords[1]].centroid], 'euclidean'))
+            i,j = new_mesh.cellIndex(ind)
+            f.write(repr(coords[0])+',0\t'+repr(i)+','+repr(j)+'\t1.0\n')
+        f.write('</Mapping>')
 
-#	plt.show()
-	return new_mesh
+#       plt.show()
+        return new_mesh
 
 
 
     def cellIndex(self,index):
-	test_index = 0
-	for i, cells in enumerate(self.cells):
-	    for j, cell in enumerate(cells):
-		if test_index == index:
-		    return i,j
-		else:
-		    test_index += 1
+        test_index = 0
+        for i, cells in enumerate(self.cells):
+            for j, cell in enumerate(cells):
+                if test_index == index:
+                    return i,j
+                else:
+                    test_index += 1
 
 
 
@@ -845,21 +845,21 @@ class Mesh:
             f.write('</Mesh>\n')
 
     def ToStat(self, fn):
-	with open(fn, 'w') as f:
-	    f.write('<Stationary>\n')
-	    for i, cells in enumerate(self.cells):
-		for j, cell in enumerate(cells):
-		    if len(cell.points) == 4:
-			f.write('<Quadrilateral><vline>')
-			for p in cell.points:
-			    f.write("{:.12f}".format(p[0]))
-			    f.write(' ')
-		        f.write('</vline><wline>')
-		        for q in cell.points:
-			    f.write("{:.12f}".format(q[1]))
-			    f.write(' ')
-		        f.write('</wline></Quadrilateral>\n')
-	    f.write('</Stationary>')
+        with open(fn, 'w') as f:
+            f.write('<Stationary>\n')
+            for i, cells in enumerate(self.cells):
+                for j, cell in enumerate(cells):
+                    if len(cell.points) == 4:
+                        f.write('<Quadrilateral><vline>')
+                        for p in cell.points:
+                            f.write("{:.12f}".format(p[0]))
+                            f.write(' ')
+                        f.write('</vline><wline>')
+                        for q in cell.points:
+                            f.write("{:.12f}".format(q[1]))
+                            f.write(' ')
+                        f.write('</wline></Quadrilateral>\n')
+            f.write('</Stationary>')
 
     def FromXML(self, fn, fromString = False):
         '''Constructs a mesh from eithe a file, or a string if fromString == True.'''
@@ -964,9 +964,9 @@ def display_mesh(m, bbox, label = False, xtitle = 'V (mV)', ytitle = '', perimet
 
     for property in propertylist:
         if property.i > 0 and property.j >= 0:
-            print property.i, property.j, property.translation
+            print(property.i, property.j, property.translation)
             cell  = m.cells[property.i][property.j]
-            print 'shifting'
+            print('shifting')
             draw_shifted_bin(cell,plotlist,property.translation,fill = property.fill, color = property.color)
 
             if property.i == 0:
@@ -1009,4 +1009,4 @@ if __name__ == "__main__":
         m=Mesh(sys.argv[1])
         display_mesh(m,m.dimensions())
     else:
-        print 'Usage in main program: python mesh.py <filename>'
+        print('Usage in main program: python mesh.py <filename>')
